@@ -972,6 +972,17 @@ class DefaultController extends Controller
         }
         //  d($data);
         //   d($mod_n);
+
+        $opts = array();
+        if ($request_data) {
+            $opts = $request_data;
+        }
+
+        if(isset($opts['class']) and is_string($opts['class']) and strstr($opts['class'],'module-as-element')){
+            $opts['module_as_element'] = true;
+            $opts['populate_module_ids_in_elements'] = true;
+        }
+
         if ($mod_n == 'element-from-template' && isset($data['template'])) {
             $t = str_replace('..', '', $data['template']);
             $possible_layout = TEMPLATE_DIR . $t;
@@ -980,7 +991,7 @@ class DefaultController extends Controller
             if (is_file($possible_layout)) {
                 $l = new \Microweber\View($possible_layout);
                 $layout = $l->__toString();
-                $layout = $this->app->parser->process($layout, $options = false);
+                $layout = $this->app->parser->process($layout, $opts);
                 return response($layout);
 
 
@@ -993,7 +1004,7 @@ class DefaultController extends Controller
             if (is_file($possible_layout)) {
                 $l = new \Microweber\View($possible_layout);
                 $layout = $l->__toString();
-                $layout = $this->app->parser->process($layout, $options = false);
+                $layout = $this->app->parser->process($layout, $opts);
                 return response($layout);
 
 
@@ -1508,7 +1519,7 @@ class DefaultController extends Controller
                         $td_fd = $td_base . DS . $page_url_segment_3_str_copy;
                         $td_fd2 = $td_base . DS . $page_url_segment_3[0];
                         $td_fd2_file = $td_fd2.'.php';
-                    //
+                        //
 
                         if (is_file($td_fd2_file)) {
                             $the_new_page_file = $td_fd2_file;
@@ -1696,7 +1707,7 @@ class DefaultController extends Controller
                         $page['simply_a_file'] = $simply_a_file;
                         template_var('new_page', $page);
                         template_var('simply_a_file', $simply_a_file);
-                         $show_404_to_non_admin = false;
+                        $show_404_to_non_admin = false;
 
                         $enable_full_page_cache = false;
 
