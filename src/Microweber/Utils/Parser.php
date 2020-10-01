@@ -3,6 +3,7 @@
 namespace Microweber\Utils;
 
 use Microweber\Providers\Modules;
+use Microweber\View;
 
 $parser_cache_object = false; //global cache storage
 $mw_replaced_edit_fields_vals = array();
@@ -782,7 +783,7 @@ class Parser
 
                                     if ($mod_as_element == false) {
                                         if ($module_name == 'text' or $module_name == 'title' or $module_name == 'text/empty_element' or $module_name == 'text/multiple_columns') {
-                                             $module_html = str_replace('__MODULE_CLASS__', 'layout-element ' . $module_name_url, $module_html);
+                                            $module_html = str_replace('__MODULE_CLASS__', 'layout-element ' . $module_name_url, $module_html);
                                         } else {
                                             $module_html = str_replace('__MODULE_CLASS__', 'module ' . $module_class, $module_html);
                                         }
@@ -794,7 +795,7 @@ class Parser
                                         $userclass = trim(str_replace(' module module ', ' module ', $userclass));
                                         $userclass = trim(str_replace('module module ', 'module ', $userclass));
                                         $module_html = str_replace('__MODULE_CLASS_NAME__', '' . $module_class, $module_html);
-                                       // $module_html = str_replace('__USER_DEFINED_CLASS__', $userclass, $module_html);
+                                        // $module_html = str_replace('__USER_DEFINED_CLASS__', $userclass, $module_html);
 
                                     } else {
                                         $userclass = trim(str_replace(' -module ', '', $userclass));
@@ -890,9 +891,9 @@ class Parser
                                             }
 
                                             if ($pass /*and $nv*/) {
-                                               // $module_html .= " {$nn}='{$nv}'  ";
+                                                // $module_html .= " {$nn}='{$nv}'  ";
                                                 $module_html .= " {$nn}=\"{$nv}\"  ";
-                                               // $module_html .= " {$nn}={$nv}  ";
+                                                // $module_html .= " {$nn}={$nv}  ";
                                             }
                                         }
                                     }
@@ -1471,7 +1472,7 @@ class Parser
 
                     if(isset($data['updated_at'])){
                         $field_content_modified_date  = $data['updated_at'];
-                     }
+                    }
 
                     $this->_current_parser_rel = $rel;
 
@@ -1538,8 +1539,8 @@ class Parser
                                 if($field_content_modified_date and $this->app->user_manager->is_admin()){
                                     pq($elem_clone)->attr('itemprop','dateModified');
                                     pq($elem_clone)->attr('content',date("Y M d",strtotime($field_content_modified_date)));
-                                  //  pq($elem_clone)->attr('itemscope','');
-                                  //  pq($elem_clone)->attr('itemtype','http://schema.org/CreativeWork');
+                                    //  pq($elem_clone)->attr('itemscope','');
+                                    //  pq($elem_clone)->attr('itemtype','http://schema.org/CreativeWork');
 
                                 }
                                 pq($elem)->replaceWith($elem_clone);
@@ -2014,7 +2015,26 @@ class Parser
         return $contentNode;
     }
 
+
+
+    public $module_registry = array();
+    public $module_load_registry = array();
+
     public function load($module_name, $attrs = array())
+    {
+
+
+        $mod_id_value = 'load'.crc32($module_name . json_encode($attrs));
+        $that = $this;
+        if (isset($that->module_load_registry[$mod_id_value])) {
+            return $that->module_load_registry[$mod_id_value];
+        }
+        $that->module_load_registry[$mod_id_value] = $that->load_module_callback($module_name, $attrs);
+        return $that->module_load_registry[$mod_id_value];
+
+
+    }
+    private function load_module_callback($module_name, $attrs = array())
     {
         $is_element = false;
         $custom_view = false;
@@ -2025,11 +2045,11 @@ class Parser
             $attrs['view'] = $custom_view = str_replace('..', '', $custom_view);
         }
 
-        if ($custom_view != false and strtolower($custom_view) == 'admin') {
-            if ($this->app->user_manager->is_admin() == false) {
-                mw_error('Not logged in as admin');
-            }
-        }
+        /*   if ($custom_view != false and strtolower($custom_view) == 'admin') {
+               if ($this->app->user_manager->is_admin() == false) {
+                   mw_error($custom_view. 'Not logged in as admin');
+               }
+           }*/
 
         $module_name = trim($module_name);
         $module_name = str_replace('\\', '/', $module_name);
@@ -2049,6 +2069,58 @@ class Parser
 
         if (!defined('ACTIVE_TEMPLATE_DIR')) {
             $this->app->content_manager->define_constants();
+        }
+
+
+        if (isset($attrs) and is_array($attrs) and !empty($attrs)) {
+            $attrs2 = array();
+            foreach ($attrs as $attrs_k => $attrs_v) {
+                $attrs_k2 = substr($attrs_k, 0, 5);
+                if (strtolower($attrs_k2) == 'data-') {
+                    $attrs_k21 = substr($attrs_k, 5);
+                    $attrs2[$attrs_k21] = $attrs_v;
+                } elseif (!isset($attrs['data-' . $attrs_k])) {
+                    $attrs2['data-' . $attrs_k] = $attrs_v;
+                }
+
+                $attrs2[$attrs_k] = $attrs_v;
+            }
+            $attrs = $attrs2;
+        }
+
+
+        if (isset($attrs['module-id']) and $attrs['module-id'] != false) {
+            $attrs['id'] = $attrs['module-id'];
+        }
+
+        if (!isset($attrs['id'])) {
+            global $mw_mod_counter;
+            ++$mw_mod_counter;
+            //  $seg_clean = $this->app->url_manager->segment(0);
+            $seg_clean = $this->app->url_manager->segment(0, url_current());
+
+
+            if (defined('IS_HOME')) {
+                $seg_clean = '';
+            }
+            $seg_clean = str_replace('%20', '-', $seg_clean);
+            $seg_clean = str_replace(' ', '-', $seg_clean);
+            $seg_clean = str_replace('.', '', $seg_clean);
+            $attrs1 = crc32(serialize($attrs) . $seg_clean . $mw_mod_counter);
+            $attrs1 = str_replace('%20', '-', $attrs1);
+            $attrs1 = str_replace(' ', '-', $attrs1);
+            $attrs['id'] = ( $this->module_css_class($module_name) . '-' . $attrs1);
+        }
+        if (isset($attrs['id']) and strstr($attrs['id'], '__MODULE_CLASS_NAME__')) {
+            $attrs['id'] = str_replace('__MODULE_CLASS_NAME__',  $this->module_css_class($module_name), $attrs['id']);
+            //$attrs['id'] = ('__MODULE_CLASS__' . '-' . $attrs1);
+        }
+
+
+        if(isset($this->module_registry[$module_name]) and $this->module_registry[$module_name]){
+            return   \App::call($this->module_registry[$module_name], ["params"=>$attrs]);
+        } else  if(isset($this->module_registry[$module_name.'/index']) and $this->module_registry[$module_name.'/index']){
+            return   \App::call($this->module_registry[$module_name.'/index'], ["params"=>$attrs]);
         }
 
         $module_in_template_dir = ACTIVE_TEMPLATE_DIR . 'modules/' . $module_name . '';
@@ -2259,7 +2331,7 @@ class Parser
             }
 
 
-            $l1 = new \Microweber\View($try_file1);
+            $l1 = new View($try_file1);
             $l1->config = $config;
             $l1->app = $this->app;
 
@@ -2314,7 +2386,7 @@ class Parser
             unset($l1);
             if ($lic != false and isset($lic['error']) and ($lic['error'] == 'no_license_found')) {
                 $lic_l1_try_file1 = MW_ADMIN_VIEWS_DIR . 'activate_license.php';
-                $lic_l1 = new \Microweber\View($lic_l1_try_file1);
+                $lic_l1 = new View($lic_l1_try_file1);
 
                 $lic_l1->config = $config;
                 $lic_l1->params = $attrs;
@@ -2345,6 +2417,8 @@ class Parser
             return false;
         }
     }
+
+
 
     public function replace_non_cached_modules_with_placeholders($layout)
     {
