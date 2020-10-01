@@ -555,6 +555,7 @@ class Parser
 
 
                                         $mod_id = '';
+                                        $mod_id_was_not_found = false;
                                         $mod_id2 = '';
 
 
@@ -566,6 +567,7 @@ class Parser
 
                                         if (!$mod_id) {
                                             $mod_id = $module_class;
+                                            $mod_id_was_not_found = true;
                                             if ($coming_from_parent_id and $coming_from_parent) {
                                                 //  $mod_id = $module_name;
 
@@ -599,6 +601,12 @@ class Parser
                                             } elseif (defined('CONTENT_ID')) {
                                                 $mod_id = $mod_id . '-' . CONTENT_ID;
                                             }
+
+
+                                            if($mod_id_was_not_found and isset($options['populate_module_ids_in_elements']) and $options['populate_module_ids_in_elements']){
+                                                $mod_id = $mod_id .'-'.date('YmdHis').'-'.$mw_mod_counter;
+                                            }
+
                                         }
 
                                         $it++;
